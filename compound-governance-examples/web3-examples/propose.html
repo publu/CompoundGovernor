@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" type="text/css" href="../dependencies/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create a Proposal</title>
+</head>
+<body>
+  <h1>Create A Proposal</h1>
+  <div id="web3-warning" class="hidden warning">
+    Make sure the example app is being served with an HTTP server. <br />
+    Please install MetaMask: <a href="https://metamask.io/">https://metamask.io/</a>
+  </div>
+  <div class="card">
+    <label>My Address: </label>&nbsp;<span id="my-address"></span>
+    <br />
+    <label>Overview: </label>&nbsp;
+    <br/>
+    <textarea id="for" name="stuff" value="for"></textarea>
+    <br/ >
+
+    <label>Target Contracts: </label>&nbsp;<select id="target-selector"></select>
+    <input id="target" type="submit" value="add action" />
+
+    <br />
+    <div id="loader" class="loader-container hidden">
+      <div class="loader"></div>
+      <span>Ethereum transactions may take a few minutes to be mined.</span>
+    </div>
+    <br />
+    <input id="submit" type="submit" value="Create Proposal" />
+  </div>
+</body>
+
+<script type="text/javascript" src="../dependencies/gov-abi.js"></script>
+
+<script type="text/javascript" src="../dependencies/tribe-abi.js"></script>
+
+<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/ethereum/web3.js@1.2.6/dist/web3.min.js"></script>
+<script type="text/javascript">
+  window.addEventListener('load', (event) => {
+    let web3;
+    const web3Warning = document.getElementById('web3-warning');
+    const myAddress = document.getElementById('my-address');
+    const voteWeight = document.getElementById('vote-weight');
+    const targetSelector = document.getElementById('target-selector');
+    const submit = document.getElementById('submit');
+    const loader = document.getElementById('loader');
+    const _for = document.getElementById('for');
+    const against = document.getElementById('against');
+
+    let myAccount, governanceAddress, governanceAbi, gov;
+
+    if (typeof window.ethereum === 'undefined') {
+      console.error('Client does not have an active Web3 provider or the example app is not being run from an HTTP server.');
+      console.log('Go here to install MetaMask: https://metamask.io/');
+      alert(
+        'You need a Web3 provider to run this page. ' + 
+        'Go here to install MetaMask:\n\n' +
+        'https://metamask.io/'
+      );
+      web3Warning.classList.remove('hidden');
+    } else {
+      main();
+    }
+
+    async function main() {
+      web3 = new Web3(window.ethereum);
+      const net = web3.currentProvider.networkVersion;
+
+      // This app only works with Ropsten or Main
+      if (net !== '1' && net !== '3') {
+        alert('Please select the Main or Ropsten network.');
+        return;
+      }
+
+      const accounts = await window.ethereum.enable();
+      myAccount = accounts[0];
+
+      myAddress.innerText = myAccount;
+
+      // Ropsten Governor & Governed Contract
+      governanceAddress = '0x6756F985C772f73Ef708316E4D212052F446e30f';
+
+      // Address we're affecting
+      governedAddress = "0xEfd311deD7aCD57aF6c153F931618aAa96a799E0";
+
+      governanceAbi = window.governanceAbi;
+      gov = new web3.eth.Contract(governanceAbi, governanceAddress);
+
+      let actions = [];
+
+      function addAction(funcs, data, message){
+        actions.push({
+          "targets": governedAddress,
+          "values": "0",
+          "signatures": funcs,
+          "callData": data,
+          "message": message // ipfs hash?
+        });
+      }
+
+      let targets = [];
+
+      function addTarget(name, address, abi){
+        targets.push({
+          "name": name,
+          "address" : address,
+          "abi" : abi
+        })
+      }
+
+      addTarget("Bonding Curve", "0xEfd311deD7aCD57aF6c153F931618aAa96a799E0", )
+
+      function getTargets() {
+        targetSelector.options[targetSelector.options.length] = new Option('Select Active Proposal', 0);
+        for (let i in targets) {
+          targetSelector.options[targetSelector.options.length] = new Option(targets[i].name, (i+1) );
+        }
+      }
+
+      // a set of predefined contract targets.
+
+      addAction("setBuffer(uint)", web3.eth.abi.encodeParameters(['uint'], ["200"]), "do nothing");
+
+      submit.onclick = async () => {
+        // An active proposal needs to be selected in the UI
+        try {
+          let targets = actions.map(key => { return key.targets } );
+          //[governedAddress];
+          let values = actions.map(key => { return key.values } ); 
+          //["0"];
+          let signatures = actions.map(key => { return key.signatures } );
+
+          //["setBuffer(uint)"];
+          let callDatas = actions.map(key => { return key.callData } );
+
+          let message = JSON.stringify(actions.map(key => { return key.message }));
+
+          //  [web3.eth.abi.encodeParameters(['uint'], ["200"])];
+
+          console.log("propose(",targets, values, signatures, callDatas, message,")")
+          const tx = await gov.methods.propose(targets, values, signatures, callDatas, message)
+            .send({ from: myAccount });
+          console.log(tx);
+          //alert(`Successfully voted ${vote ? 'for' : 'against'} Proposal ${proposal}`);
+          //window.location.reload();
+        } catch(e) {
+          console.error(e);
+          alert(e.message);
+        }
+        loader.classList.add('hidden');
+      };
+    }
+  });
+</script>
+
+</html>
