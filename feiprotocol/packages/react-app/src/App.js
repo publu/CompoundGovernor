@@ -58,8 +58,11 @@ function App() {
 
   const [title, setTitle] = useState("");
 
+  const [selectedTarget, setSelectedTarget] = useState(0);
   const [selectedAction, setSelectedAction] = useState({});
   const [actionInputs, setActionInputs] = useState([]);
+
+  const [actions, setActions] = useState([]);
 
   React.useEffect(() => {
     if (!loading && !error && data && data.transfers) {
@@ -85,21 +88,25 @@ function App() {
 
       const gov = new Contract(governanceAddress, governanceAbi).connect(signer);
 
-      const functionTypes = selectedAction.inputs.map((input) => input.type);
-      const functionValues = selectedAction.inputs.map((input, index) =>  {
-        if (input.type.endsWith("[]")) {
-          return Array.from(JSON.parse(actionInputs[index]));
-        } else {
-          return actionInputs[index];
-        }
-      });
-      console.log(functionTypes, functionValues);
-
       // const tx = await gov.functions.propose(encodedParams, "");
-      const targets = [TARGETS[0].address];
-      const values = ["0"];
-      const signatures = [`${selectedAction.name}(${selectedAction.inputs.map(input => input.type)})`]// ["getBalanceOf(address)"];
-      const callDatas = [ethers.utils.defaultAbiCoder.encode(functionTypes, functionValues)];
+      //const targets = [TARGETS[0].address];
+      const targets = actions.map((action) => TARGETS[action.target].address);
+      //const values = ["0"];
+      const values = actions.map(() => "0");
+      // const signatures = [`${selectedAction.name}(${selectedAction.inputs.map(input => input.type)})`]// ["getBalanceOf(address)"];
+      const signatures = actions.map(action => `${action.action.name}(${action.action.inputs.map(input => input.type)})`);
+
+      const callDatas = actions.map(action => {
+        const functionTypes = action.action.inputs.map((input) => input.type);
+        const functionValues = action.action.inputs.map((input, index) =>  {
+          if (input.type.endsWith("[]")) {
+            return Array.from(JSON.parse(action.inputs[index]));
+          } else {
+            return action.inputs[index];
+          }
+        });
+        return ethers.utils.defaultAbiCoder.encode(functionTypes, functionValues);
+      })
 
       console.log("targets: ", targets);
       console.log("values: ", values);
@@ -113,6 +120,15 @@ function App() {
     }
   };
 
+  const addAction = () => {
+    let newActions = [...actions, {
+      target: selectedTarget,
+      action: selectedAction,
+      inputs: actionInputs,
+    }];
+    setActions(newActions);
+  };
+
   return (
     <div>
       <Header>
@@ -123,11 +139,32 @@ function App() {
           Create proposal
         </h1>
         <div>
-          <label htmlFor="about" className="block text-sm font-medium text-gray-700">
-              Title
-          </label>
+          {
+            actions.map((action) => (
+              <div>
+                {
+                  TARGETS[action.target].abi.abi.filter(fn => action.action.name === fn.name).map((fn) => (
+                    <>
+                    {
+                      fn.inputs.map((input, inputIndex) => (
+                        <label>
+                          { input.name } ({ input.type }) 
+                          <input 
+                            disabled
+                            type="text"
+                            value={action.inputs[inputIndex]}
+                          />
+                        </label>
+                      ))
+                    }
+                    </>
+                  ))
+                }
+                <hr />
+              </div>
+            ))
+          }
           <div className="mt-1">
-            <input type="text" onChange={e => setTitle(e.target.value)} id="about" name="about" rows={3} className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mt-1 block w-full sm:text-sm border-gray-300 rounded-md h-32" placeholder="I'm a title" value={title}></input>
             Target
             <select onChange={e => setSelectedAction(TARGETS[0].abi.abi.find(action => action.name === e.target.value))}>
               {
@@ -164,6 +201,11 @@ function App() {
                 </div>
               )
             }
+          <button 
+              onClick={addAction}
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white border-gray-400 text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Add Action
+          </button>
           </div>
         </div>
         <div>
