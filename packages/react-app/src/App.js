@@ -14,15 +14,22 @@ import { addresses, abis } from "@project/contracts";
 import GET_TRANSFERS from "./graphql/subgraph";
 
 import EthBondingCurveAbi from "./contracts/EthBondingCurve";
+import BasicContractAbi from "./contracts/basicContract";
+
 import governanceAbi from "./contracts/governance";
 
 
 const TARGETS = [
   {
-    name: "EthBondingCurve",
+    name: "Eth Bonding Curve",
     address: "0xEfd311deD7aCD57aF6c153F931618aAa96a799E0",
     abi: EthBondingCurveAbi,
   },
+  {
+    name: "Basic Contract (doesn't exist tho)",
+    address: "0xEfd311deD7aCD57aF6c153F931618aAa96a799E0",
+    abi: BasicContractAbi,
+  }
 ];
 
 async function readOnChainData() {
@@ -82,7 +89,7 @@ function App() {
 
   const submitProposal = async () => {
     try {
-      const governanceAddress = '0x6756F985C772f73Ef708316E4D212052F446e30f';
+      const governanceAddress = '0xE71e9d5Fc25394dA3C49Abde76164E9548EbB4DA';
 
       const signer = provider.getSigner();
 
@@ -143,8 +150,12 @@ function App() {
             actions.map((action) => (
               <div>
                 {
-                  TARGETS[action.target].abi.abi.filter(fn => action.action.name === fn.name).map((fn) => (
+                  action.target.abi.abi.filter(fn => action.action.name === fn.name).map((fn) => (
                     <>
+                    {
+                      action.target.name 
+                    }
+                    :
                     {
                       fn.inputs.map((input, inputIndex) => (
                         <label>
@@ -164,11 +175,15 @@ function App() {
               </div>
             ))
           }
+
           <div className="mt-1">
             Target
-            <select onChange={e => setSelectedAction(TARGETS[0].abi.abi.find(action => action.name === e.target.value))}>
+            <select onChange={e => setSelectedTarget(TARGETS.find(action => action.name === e.target.value))}>
+                <option value="null">
+                    Select a target
+                </option>
               {
-                TARGETS[0].abi.abi.filter(fn => fn.name).map((fn) => (
+                TARGETS.filter(fn => fn.name).map((fn) => (
                   <option value={fn.name}>
                     {
                       fn.name
@@ -176,12 +191,27 @@ function App() {
                   </option>
                 ))
               }
-            </select>
+              </select>
             {
-              selectedAction && (
+              selectedTarget && (
+              <select onChange={e => setSelectedAction(selectedTarget.abi.abi.find(action => action.name === e.target.value))}>
+              {
+                selectedTarget.abi.abi.filter(fn => fn.name).map((fn) => (
+                  <option value={fn.name}>
+                    {
+                      fn.name
+                    }
+                  </option>
+                ))
+              }
+              </select>
+              )
+            }
+            {
+              selectedTarget && selectedAction && (
                 <div>
                   {
-                    TARGETS[0].abi.abi.filter(fn => selectedAction.name === fn.name).map((fn) => (
+                    selectedTarget.abi.abi.filter(fn => selectedAction.name === fn.name).map((fn) => (
                       <>
                       {
                         fn.inputs.map((input, inputIndex) => (
@@ -209,9 +239,6 @@ function App() {
           </div>
         </div>
         <div>
-          {
-            console.log(provider)
-          }
           <button 
               onClick={submitProposal}
               className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white border-gray-400 text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
