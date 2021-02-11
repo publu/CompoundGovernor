@@ -193,7 +193,7 @@ function App() {
               }
               </select>
             {
-              selectedTarget && (
+              !!selectedTarget && (
               <select onChange={e => setSelectedAction(selectedTarget.abi.abi.find(action => action.name === e.target.value))}>
               {
                 selectedTarget.abi.abi.filter(fn => fn.name).map((fn) => (
@@ -208,7 +208,7 @@ function App() {
               )
             }
             {
-              selectedTarget && selectedAction && (
+              !!selectedTarget && !!selectedAction && (
                 <div>
                   {
                     selectedTarget.abi.abi.filter(fn => selectedAction.name === fn.name).map((fn) => (
